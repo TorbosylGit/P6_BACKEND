@@ -1,20 +1,37 @@
-const Thing = require('../models/thing');
-const fs = require('fs'); // pour gérer les fichiers
+const Thing = require('../models/Thing');
+const fs = require('fs');
+const validator = require('validator'); // valider les entrées utilisateur
+const sanitize = require('xss-clean'); // prévenir les attaques XSS
 
 // créer un nouvel objet
 exports.createThing = (req, res, next) => {
-    const thingObject = JSON.parse(req.body.thing); // extraire l'objet envoyé en form-data
+    const thingObject = JSON.parse(req.body.thing); // extraire les données
 
-    // suppression des champs sensibles
+    // valider et sanitiser les entrées
+    if (!validator.isLength(thingObject.title, { min: 1 })) {
+        return res.status(400).json({ error: 'Titre requis' });
+    }
+    if (!validator.isLength(thingObject.description, { min: 1 })) {
+        return res.status(400).json({ error: 'Description requise' });
+    }
+    if (!validator.isFloat(thingObject.price.toString())) {
+        return res.status(400).json({ error: 'Prix invalide' });
+    }
+
+    // sanitiser les autres champs pour éviter XSS
+    thingObject.title = sanitize(thingObject.title);
+    thingObject.description = sanitize(thingObject.description);
+
+    // supprimer les champs non autorisés
     delete thingObject._id;
     delete thingObject._userId;
 
     const thing = new Thing({
         ...thingObject,
-        userId: req.auth.userId, // sécuriser l'userId
+        userId: req.auth.userId, // sécuriser userId
         imageUrl: `${req.protocol}://${req.get('host')}/images/${
             req.file.filename
-        }`, // générer l'URL de l'image
+        }`,
     });
 
     thing
@@ -22,52 +39,84 @@ exports.createThing = (req, res, next) => {
         .then(() =>
             res.status(201).json({ message: 'Objet enregistré avec succès !' })
         )
-        .catch((error) => res.status(400).json({ error }));
+        .catch((error) => {
+            console.error(error); // logger l'erreur
+            res.status(500).json({
+                message: "Erreur serveur lors de l'enregistrement",
+            });
+        });
 };
 
 // récupérer un objet par son id
 exports.getOneThing = (req, res, next) => {
     Thing.findOne({ _id: req.params.id })
         .then((thing) => res.status(200).json(thing))
-        .catch((error) => res.status(404).json({ error }));
+        .catch((error) => {
+            console.error(error); // logger l'erreur
+            res.status(404).json({ message: 'Objet non trouvé' });
+        });
 };
 
 // modifier un objet par son id
 exports.modifyThing = (req, res, next) => {
-    // vérifier si un fichier est présent, sinon utiliser req.body
     const thingObject = req.file
         ? {
-              ...JSON.parse(req.body.thing), // récupérer l'objet depuis req.body
+              ...JSON.parse(req.body.thing), // si fichier, extraire l'objet
               imageUrl: `${req.protocol}://${req.get('host')}/images/${
                   req.file.filename
-              }`, // générer l'URL de l'image
+              }`,
           }
-        : { ...req.body }; // sinon, prendre les données du corps
+        : { ...req.body };
 
-    // supprimer _userId pour éviter la manipulation
-    delete thingObject._userId;
+    // valider et sanitiser les entrées
+    if (
+        thingObject.title &&
+        !validator.isLength(thingObject.title, { min: 1 })
+    ) {
+        return res.status(400).json({ error: 'Titre requis' });
+    }
+    if (
+        thingObject.description &&
+        !validator.isLength(thingObject.description, { min: 1 })
+    ) {
+        return res.status(400).json({ error: 'Description requise' });
+    }
+    if (thingObject.price && !validator.isFloat(thingObject.price.toString())) {
+        return res.status(400).json({ error: 'Prix invalide' });
+    }
 
-    // rechercher l'objet dans la base de données
+    // sanitiser les champs pour éviter XSS
+    if (thingObject.title) thingObject.title = sanitize(thingObject.title);
+    if (thingObject.description)
+        thingObject.description = sanitize(thingObject.description);
+
+    delete thingObject._userId; // éviter la modification du userId
+
     Thing.findOne({ _id: req.params.id })
         .then((thing) => {
-            // vérifier que l'utilisateur authentifié est le propriétaire de l'objet
             if (thing.userId != req.auth.userId) {
-                res.status(401).json({ message: 'Not authorized' }); // non autorisé
-            } else {
-                // mettre à jour l'objet dans la base de données
-                Thing.updateOne(
-                    { _id: req.params.id },
-                    { ...thingObject, _id: req.params.id }
-                )
-                    .then(() =>
-                        res.status(200).json({ message: 'Objet modifié!' })
-                    ) // succès
-                    .catch((error) => res.status(401).json({ error })); // erreur de mise à jour
+                return res.status(403).json({ message: 'Non autorisé' });
             }
+
+            Thing.updateOne(
+                { _id: req.params.id },
+                { ...thingObject, _id: req.params.id }
+            )
+                .then(() =>
+                    res
+                        .status(200)
+                        .json({ message: 'Objet modifié avec succès !' })
+                )
+                .catch((error) => {
+                    console.error(error); // logger l'erreur
+                    res.status(500).json({
+                        message: 'Erreur serveur lors de la modification',
+                    });
+                });
         })
         .catch((error) => {
-            // erreur lors de la recherche de l'objet
-            res.status(400).json({ error });
+            console.error(error); // logger l'erreur
+            res.status(404).json({ message: 'Objet non trouvé' });
         });
 };
 
@@ -76,19 +125,12 @@ exports.deleteThing = (req, res, next) => {
     Thing.findOne({ _id: req.params.id })
         .then((thing) => {
             if (!thing) {
-                return res
-                    .status(404)
-                    .json({ error: new Error('Objet non trouvé !') });
+                return res.status(404).json({ message: 'Objet non trouvé' });
             }
-
-            // vérifier que l'utilisateur est bien le propriétaire de l'objet
             if (thing.userId !== req.auth.userId) {
-                return res
-                    .status(403)
-                    .json({ error: new Error('Requête non autorisée !') });
+                return res.status(403).json({ message: 'Non autorisé' });
             }
 
-            // supprimer l'image associée à l'objet
             const filename = thing.imageUrl.split('/images/')[1];
             fs.unlink(`images/${filename}`, () => {
                 Thing.deleteOne({ _id: req.params.id })
@@ -97,15 +139,26 @@ exports.deleteThing = (req, res, next) => {
                             .status(200)
                             .json({ message: 'Objet supprimé avec succès !' })
                     )
-                    .catch((error) => res.status(400).json({ error }));
+                    .catch((error) => {
+                        console.error(error); // logger l'erreur
+                        res.status(500).json({
+                            message: 'Erreur serveur lors de la suppression',
+                        });
+                    });
             });
         })
-        .catch((error) => res.status(500).json({ error }));
+        .catch((error) => {
+            console.error(error); // logger l'erreur
+            res.status(500).json({ message: 'Erreur serveur' });
+        });
 };
 
 // récupérer tous les objets
 exports.getAllThings = (req, res, next) => {
     Thing.find()
         .then((things) => res.status(200).json(things))
-        .catch((error) => res.status(400).json({ error }));
+        .catch((error) => {
+            console.error(error); // logger l'erreur
+            res.status(500).json({ message: 'Erreur serveur' });
+        });
 };
