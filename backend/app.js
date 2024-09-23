@@ -5,7 +5,6 @@ require('dotenv').config(); // charger les variables d'environnement depuis .env
 
 // importer les routeurs
 const bookRoutes = require('./routes/book');
-const stuffRoutes = require('./routes/stuff');
 const userRoutes = require('./routes/user');
 
 // créer l'application express
@@ -16,8 +15,6 @@ mongoose
     .connect(process.env.MONGO_DB)
     .then(() => console.log('connexion réussie à MongoDB !'))
     .catch(() => console.log('connexion échouée à MongoDB !'));
-
-
 
 // parser les requêtes json
 app.use(express.json());
@@ -46,9 +43,6 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 
 // utiliser les routes pour /api/books
 app.use('/api/books', bookRoutes);
-
-// utiliser les routes pour /api/stuff
-app.use('/api/stuff', stuffRoutes);
 
 // utiliser les routes pour /api/auth
 app.use('/api/auth', userRoutes);

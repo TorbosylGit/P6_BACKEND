@@ -7,7 +7,7 @@ exports.getAllBook = (req, res, next) => {
     Book.find()
         .then((books) => res.status(200).json(books))
         .catch((error) => {
-            console.error(error); // logger l'erreur
+            console.error(error);
             res.status(500).json({ message: 'Erreur serveur' });
         });
 };
@@ -17,7 +17,7 @@ exports.getOneBook = (req, res, next) => {
     Book.findOne({ _id: req.params.id })
         .then((book) => res.status(200).json(book))
         .catch((error) => {
-            console.error(error); // logger l'erreur
+            console.error(error);
             res.status(404).json({ message: 'Livre non trouvé' });
         });
 };
@@ -25,14 +25,16 @@ exports.getOneBook = (req, res, next) => {
 // récupérer les 3 meilleurs livres par note
 exports.getBestRating = (req, res, next) => {
     Book.find()
-        .sort({ averageRating: -1 })
-        .limit(3)
-        .then((books) => res.status(200).json(books))
-        .catch((error) => {
-            console.error(error); // logger l'erreur
-            res.status(500).json({ message: 'Erreur serveur' });
-        });
-};
+      .then((books) => {
+        const sortedBooks = books.sort(
+          (a, b) => b.averageRating - a.averageRating
+        );
+        const topThreeBooks = sortedBooks.slice(0, 3);
+        res.status(200).json(topThreeBooks);
+      })
+      .catch((error) => res.status(400).json({ error }));
+  };
+
 
 // créer un livre
 exports.createBook = (req, res, next) => {
@@ -51,11 +53,9 @@ exports.createBook = (req, res, next) => {
         return res.status(400).json({ error: 'Auteur requis' });
     }
     if (!validator.isLength(bookObject.genre, { min: 1, max: 100 })) {
-        return res
-            .status(400)
-            .json({
-                error: 'Genre invalide ou trop long (100 caractères max)',
-            });
+        return res.status(400).json({
+            error: 'Genre invalide ou trop long (100 caractères max)',
+        });
     }
     if (
         !validator.isInt(bookObject.year.toString(), { min: 1000, max: 9999 })
@@ -112,11 +112,9 @@ exports.modifyBook = (req, res, next) => {
         bookObject.genre &&
         !validator.isLength(bookObject.genre, { min: 1, max: 100 })
     ) {
-        return res
-            .status(400)
-            .json({
-                error: 'Genre invalide ou trop long (100 caractères max)',
-            });
+        return res.status(400).json({
+            error: 'Genre invalide ou trop long (100 caractères max)',
+        });
     }
     if (
         bookObject.year &&
