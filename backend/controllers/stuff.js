@@ -1,7 +1,6 @@
 const Thing = require('../models/Thing');
 const fs = require('fs');
 const validator = require('validator'); // valider les entrées utilisateur
-const sanitize = require('xss-clean'); // prévenir les attaques XSS
 
 // créer un nouvel objet
 exports.createThing = (req, res, next) => {

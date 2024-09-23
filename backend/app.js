@@ -1,9 +1,6 @@
 const express = require('express'); // importer express
 const mongoose = require('mongoose'); // importer mongoose
 const path = require('path'); // importer path pour gérer les chemins de fichiers
-const helmet = require('helmet'); // importer helmet pour la sécurité des headers HTTP
-const rateLimit = require('express-rate-limit'); // importer express-rate-limit pour limiter les requêtes
-const xssClean = require('xss-clean'); // importer xss-clean pour prévenir les attaques XSS
 require('dotenv').config(); // charger les variables d'environnement depuis .env
 
 // importer les routeurs
@@ -20,19 +17,7 @@ mongoose
     .then(() => console.log('connexion réussie à MongoDB !'))
     .catch(() => console.log('connexion échouée à MongoDB !'));
 
-// utiliser helmet pour sécuriser les headers http
-app.use(helmet());
 
-// limiter les requêtes pour éviter les attaques par force brute
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // période de 15 minutes
-    max: 100, // limiter à 100 requêtes par IP par période
-    message: 'trop de requêtes depuis cette IP, veuillez réessayer plus tard.', // message pour l'utilisateur
-});
-app.use(limiter);
-
-// utiliser xss-clean pour prévenir les attaques XSS
-app.use(xssClean());
 
 // parser les requêtes json
 app.use(express.json());
