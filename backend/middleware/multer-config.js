@@ -44,7 +44,7 @@ const optimizeImage = (req, res, next) => {
 
     // traitement de l'image avec sharp
     sharp(req.file.buffer)
-        .resize({ width: 400 }) // redimensionner à 400px (taille optimisée pour affichage desktop)
+        .resize({ width: 400 }) // redimensionner à 400px (taille container en mode desktop)
         .toFormat('jpeg') // convertir en JPEG
         .jpeg({ quality: 80 }) // compresser l'image à 80% de qualité
         .toFile(outputPath, (err) => {

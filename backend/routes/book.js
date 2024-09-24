@@ -1,37 +1,29 @@
-const express = require('express');
-const router = express.Router();
-
-// importer le contrôleur pour les livres
-const bookCtrl = require('../controllers/book');
-
-// middleware pour l'authentification des utilisateurs
-const auth = require('../middleware/auth');
-
-// multer pour gérer l'upload des fichiers
-const multer = require('../middleware/multer-config');
-
-// fonction pour optimiser les images après upload
-const { optimizeImage } = require('../middleware/multer-config');
+const express = require('express'); // importer express
+const router = express.Router(); // créer un routeur
+const bookCtrl = require('../controllers/book'); // importer le contrôleur des livres
+const auth = require('../middleware/auth'); // middleware d'authentification
+const multer = require('../middleware/multer-config'); // middleware de gestion des fichiers
+const { optimizeImage } = require('../middleware/multer-config'); // optimiser les images après upload
 
 // récupérer tous les livres
 router.get('/', bookCtrl.getAllBook);
 
+// créer un livre (auth + optim image)
+router.post('/', auth, optimizeImage, bookCtrl.createBook);
+
+// récupérer les 3 meilleurs livres
+router.get('/bestrating', bookCtrl.getBestRating);
+
 // récupérer un livre par son id
 router.get('/:id', bookCtrl.getOneBook);
 
-// récupérer les 3 livres les mieux notés
-router.get('/bestrating', bookCtrl.getBestRating);
+// modifier un livre (auth + optim image)
+router.put('/:id', auth, optimizeImage, bookCtrl.modifyBook);
 
-// créer un livre avec authentification, upload et optimisation d'image
-router.post('/', auth, multer, optimizeImage, bookCtrl.createBook);
-
-// modifier un livre avec authentification, upload et optimisation d'image
-router.put('/:id', auth, multer, optimizeImage, bookCtrl.modifyBook);
-
-// supprimer un livre avec authentification
+// supprimer un livre (auth requis)
 router.delete('/:id', auth, bookCtrl.deleteBook);
 
-// ajouter une évaluation à un livre
+// ajouter une évaluation (auth requis)
 router.post('/:id/rating', auth, bookCtrl.postRating);
 
-module.exports = router;
+module.exports = router; // exporter le routeur
