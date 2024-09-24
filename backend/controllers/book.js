@@ -25,18 +25,18 @@ exports.getOneBook = (req, res, next) => {
 // récupérer les 3 meilleurs livres par note
 exports.getBestRating = (req, res, next) => {
     Book.find()
-      .sort({ averageRating: -1 }) // trier directement dans la base de données par ordre décroissant
-      .limit(3) // limiter le résultat à 3 livres
-      .then((topThreeBooks) => {
-        if (!topThreeBooks || topThreeBooks.length === 0) {
-          return res.status(404).json({ message: 'Aucun livre trouvé' });
-        }
-        res.status(200).json(topThreeBooks); // renvoyer les 3 meilleurs livres
-      })
-      .catch((error) => {
-        console.error(error);
-        res.status(500).json({ message: 'Erreur serveur' });
-      });
+        .sort({ averageRating: -1 }) // trier directement dans la base de données par ordre décroissant
+        .limit(3) // limiter le résultat à 3 livres
+        .then((topThreeBooks) => {
+            if (!topThreeBooks || topThreeBooks.length === 0) {
+                return res.status(404).json({ message: 'Aucun livre trouvé' });
+            }
+            res.status(200).json(topThreeBooks); // renvoyer les 3 meilleurs livres
+        })
+        .catch((error) => {
+            console.error(error);
+            res.status(500).json({ message: 'Erreur serveur' });
+        });
 };
 
 // créer un livre
@@ -60,7 +60,9 @@ exports.createBook = (req, res, next) => {
             error: 'Genre invalide ou trop long (100 caractères max)',
         });
     }
-    if (!validator.isInt(bookObject.year.toString(), { min: 1000, max: 9999 })) {
+    if (
+        !validator.isInt(bookObject.year.toString(), { min: 1000, max: 9999 })
+    ) {
         return res.status(400).json({ error: 'Année invalide' });
     }
 
@@ -71,11 +73,15 @@ exports.createBook = (req, res, next) => {
     const book = new Book({
         ...bookObject,
         userId: req.auth.userId,
-        imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`,
+        imageUrl: `${req.protocol}://${req.get('host')}/images/${
+            req.file.filename
+        }`,
     });
 
     book.save()
-        .then(() => res.status(201).json({ message: 'Livre enregistré avec succès !' }))
+        .then(() =>
+            res.status(201).json({ message: 'Livre enregistré avec succès !' })
+        )
         .catch((error) => {
             console.error(error);
             res.status(500).json({
@@ -89,7 +95,9 @@ exports.modifyBook = (req, res, next) => {
     const bookObject = req.file
         ? {
               ...JSON.parse(req.body.book),
-              imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`,
+              imageUrl: `${req.protocol}://${req.get('host')}/images/${
+                  req.file.filename
+              }`,
           }
         : { ...req.body };
 
@@ -97,15 +105,24 @@ exports.modifyBook = (req, res, next) => {
     if (bookObject.title && !validator.isLength(bookObject.title, { min: 1 })) {
         return res.status(400).json({ error: 'Titre requis' });
     }
-    if (bookObject.author && !validator.isLength(bookObject.author, { min: 1 })) {
+    if (
+        bookObject.author &&
+        !validator.isLength(bookObject.author, { min: 1 })
+    ) {
         return res.status(400).json({ error: 'Auteur requis' });
     }
-    if (bookObject.genre && !validator.isLength(bookObject.genre, { min: 1, max: 100 })) {
+    if (
+        bookObject.genre &&
+        !validator.isLength(bookObject.genre, { min: 1, max: 100 })
+    ) {
         return res.status(400).json({
             error: 'Genre invalide ou trop long (100 caractères max)',
         });
     }
-    if (bookObject.year && !validator.isInt(bookObject.year.toString(), { min: 1000, max: 9999 })) {
+    if (
+        bookObject.year &&
+        !validator.isInt(bookObject.year.toString(), { min: 1000, max: 9999 })
+    ) {
         return res.status(400).json({ error: 'Année invalide' });
     }
 
@@ -117,11 +134,29 @@ exports.modifyBook = (req, res, next) => {
                 return res.status(403).json({ message: 'Non autorisé' });
             }
 
+            // si une nouvelle image est uploadée, supprimer l'ancienne image
+            if (req.file) {
+                const oldFilename = book.imageUrl.split('/images/')[1];
+                fs.unlink(`images/${oldFilename}`, (err) => {
+                    if (err) {
+                        console.error(
+                            "Erreur lors de la suppression de l'ancienne image :",
+                            err
+                        );
+                    }
+                });
+            }
+
+            // mise à jour du livre avec les nouvelles données
             Book.updateOne(
                 { _id: req.params.id },
                 { ...bookObject, _id: req.params.id }
             )
-                .then(() => res.status(200).json({ message: 'Livre modifié avec succès !' }))
+                .then(() =>
+                    res
+                        .status(200)
+                        .json({ message: 'Livre modifié avec succès !' })
+                )
                 .catch((error) => {
                     console.error(error);
                     res.status(500).json({
@@ -149,7 +184,11 @@ exports.deleteBook = (req, res, next) => {
             const filename = book.imageUrl.split('/images/')[1];
             fs.unlink(`images/${filename}`, () => {
                 Book.deleteOne({ _id: req.params.id })
-                    .then(() => res.status(200).json({ message: 'Livre supprimé avec succès !' }))
+                    .then(() =>
+                        res
+                            .status(200)
+                            .json({ message: 'Livre supprimé avec succès !' })
+                    )
                     .catch((error) => {
                         console.error(error);
                         res.status(500).json({
@@ -176,14 +215,18 @@ exports.postRating = (req, res, next) => {
     Book.findOne({ _id: req.params.id })
         .then((book) => {
             if (book.ratings.find((r) => r.userId === userId)) {
-                return res.status(400).json({ error: 'Vous avez déjà noté ce livre' });
+                return res
+                    .status(400)
+                    .json({ error: 'Vous avez déjà noté ce livre' });
             }
 
             const newRating = { userId, grade: rating };
             book.ratings.push(newRating);
 
             // recalculer la moyenne des notes
-            book.averageRating = book.ratings.reduce((sum, r) => sum + r.grade, 0) / book.ratings.length;
+            book.averageRating =
+                book.ratings.reduce((sum, r) => sum + r.grade, 0) /
+                book.ratings.length;
 
             book.save()
                 .then(() => res.status(200).json(book))

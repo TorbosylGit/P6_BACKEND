@@ -4,6 +4,7 @@
     "description": "",
     "main": "server.js",
     "scripts": {
+        "start": "nodemon server.js",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "author": "",
@@ -25,5 +26,8 @@
         "sharp": "^0.33.4",
         "validator": "^13.12.0",
         "xss": "^1.0.15"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.7"
     }
 }
