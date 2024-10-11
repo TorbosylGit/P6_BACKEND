@@ -10,22 +10,20 @@ const userRoutes = require('./routes/user');
 // créer l'application express
 const app = express();
 
-// connecter à mongoDB
+// connexion à mongoDB
 mongoose
     .connect(process.env.MONGO_DB)
     .then(() => console.log('connexion réussie à MongoDB !'))
     .catch(() => console.log('connexion échouée à MongoDB !'));
 
-// parser les requêtes json
-app.use(express.json());
+// limiter la taille des requêtes JSON pour éviter les attaques par surcharge
+app.use(express.json({ limit: '10kb' }));
 
-// autoriser le cors de manière plus sécurisée
+// autorisation CORS
 app.use((req, res, next) => {
     res.setHeader(
         'Access-Control-Allow-Origin',
-        // process.env.FRONTEND_URL || 'http://localhost:3000'
-        process.env.FRONTEND_URL || '*'
-
+        process.env.FRONTEND_URL || 'http://localhost:3000'
     ); // restreindre à l'origine du frontend
     res.setHeader(
         'Access-Control-Allow-Headers',
@@ -41,10 +39,8 @@ app.use((req, res, next) => {
 // servir les fichiers statiques du dossier images
 app.use('/images', express.static(path.join(__dirname, 'images')));
 
-// utiliser les routes pour /api/books
+// routes API
 app.use('/api/books', bookRoutes);
-
-// utiliser les routes pour /api/auth
 app.use('/api/auth', userRoutes);
 
 // exporter l'application
